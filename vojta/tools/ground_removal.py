@@ -90,6 +90,33 @@ def get_frame_without_ground_mask(number):
         
     
     return mask
+    
+def get_frame_without_ground(number):
+    '''
+    Loads and synchronizes PCL
+    
+        Parameters:
+            number (int): number of PCL sequence to be loaded
+        
+        Returns:
+            pts (numpy.array): N by 3 array of synchronized PCL
+            intensities (numpy.array): N by 1 array of intensities of points in PCL
+    '''
+    file_name = "0" * int(6 - (len(str(number)))) + str(number)
+    scan = np.fromfile(PATH + "velodyne/" + file_name + ".bin", dtype=np.float32)
+    scan = scan.reshape((-1, 4))
+    intensities = scan[:,3]
+    pts = scan[:,0:3]
+    
+    pose = POSES[number]
+    pose = np.vstack((pose, [0,0,0,1]))
+    pts = transform_mat(pts, pose).reshape(-1,3)
+    
+    mask = get_frame_without_ground_mask(number)
+    pts = pts[mask]
+    intensities = intensities[mask]
+    
+    return pts, intensities
 
 
 # https://medium.com/@ajithraj_gangadharan/3d-ransac-algorithm-for-lidar-pcd-segmentation-315d2a51351
