@@ -34,6 +34,7 @@ MAX_DIFF_GROUND = MAX_DIF_DEG * np.pi / 180.
 
 REPAIR_DEPTH_STEP = 5
 
+
 def smooth_golay(column_angles, window_size=5, polyorder=2):
     '''
 
@@ -44,6 +45,7 @@ def smooth_golay(column_angles, window_size=5, polyorder=2):
     # TODO: perform the smoothing for each column separately
     smoothed = savgol_filter(column_angles, window_length=window_size, polyorder=polyorder)
     return smoothed
+
 
 def compute_angles(range_image):
     # go column by column
@@ -56,7 +58,8 @@ def compute_angles(range_image):
     sines = np.sin(vertical_angles)
     cosines = np.cos(vertical_angles)
 
-    angles = np.zeros((range_image.shape[0] - 1, range_image.shape[1])) # -1 because we compute angle differences between pairs
+    angles = np.zeros(
+        (range_image.shape[0] - 1, range_image.shape[1]))  # -1 because we compute angle differences between pairs
     angles_filtered = np.zeros((range_image.shape[0] - 1, range_image.shape[1]))
 
     for col_idx in range(range_image.shape[1]):
@@ -73,6 +76,7 @@ def compute_angles(range_image):
 
     return angles, angles_filtered
 
+
 def neighborhood(r, c, valid, rmax, cmax):
     rmax, cmax = rmax - 1, cmax - 1
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -86,6 +90,7 @@ def neighborhood(r, c, valid, rmax, cmax):
         neighbors.append((nr, nc))
 
     return neighbors
+
 
 def labelGroundBFS(r, c, angles, depths, labels, max_diff):
     queue = [(r, c)]
@@ -109,6 +114,7 @@ def labelGroundBFS(r, c, angles, depths, labels, max_diff):
             if diff < max_diff:
                 queue.append((rn, cn))
     return labels
+
 
 def repair_depth(range_image, step=REPAIR_DEPTH_STEP, depth_threshold=1.0):
     inpainted_depth = range_image.copy()
@@ -135,6 +141,7 @@ def repair_depth(range_image, step=REPAIR_DEPTH_STEP, depth_threshold=1.0):
                     inpainted_depth[r, c] = curr_depth
     return inpainted_depth
 
+
 def label_ground(angles_filtered, range_image_repaired):
     ground_labels = np.zeros_like(angles_filtered).astype(dtype=bool)
     max_start_rad = np.deg2rad(45.)
@@ -155,6 +162,7 @@ def label_ground(angles_filtered, range_image_repaired):
 
     return ground_labels
 
+
 def fill_invalid_pts_ground(ground_labels, invalid_pts):
     ground_labels_filled = ground_labels.copy()
     h, w = ground_labels.shape
@@ -166,5 +174,3 @@ def fill_invalid_pts_ground(ground_labels, invalid_pts):
                 r + 1, c]
 
     return ground_labels_filled
-
- 

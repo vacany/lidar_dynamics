@@ -5,132 +5,167 @@ import random
 
 PATH = "../../semantic_kitti_data/sequences/01/"
 POSES = np.loadtxt(PATH + "poses.txt")
-POSES = POSES.reshape(-1,3,4)
+POSES = POSES.reshape(-1, 3, 4)
+
 
 def transform_mat(_pts, pose):
-    '''
+    """
     multiply matrix of 3d points by transformation matrix, which will result in original 3d points
     being synchronized across multiple sequences, meaning a rigid object will stay in place even though
     the LIDAR is moving
-     '''
+     """
     calibration_tr = np.array([4.276802385584e-04, -9.999672484946e-01, -8.084491683471e-03, -1.198459927713e-02,
                                -7.210626507497e-03, 8.081198471645e-03, -9.999413164504e-01, -5.403984729748e-02,
                                9.999738645903e-01, 4.859485810390e-04, -7.206933692422e-03, -2.921968648686e-01,
                                0, 0, 0, 1])
-    tr = calibration_tr.reshape(4,4)
+    tr = calibration_tr.reshape(4, 4)
     tr_inv = np.linalg.inv(tr)
     pose = np.matmul(tr_inv, np.matmul(pose, tr))
     n, _ = _pts.shape
     x = np.hstack((_pts, np.ones((n, 1))))
     x = np.matmul(pose, x.transpose()).transpose()
     return x[:, 0:3]
-    
+
+
 def get_frame(number):
-    '''
+    """
     Loads and synchronizes PCL
-    
+
         Parameters:
             number (int): number of PCL sequence to be loaded
-        
+
         Returns:
             pts (numpy.array): N by 3 array of synchronized PCL
             intensities (numpy.array): N by 1 array of intensities of points in PCL
-    '''
+    """
     file_name = "0" * int(6 - (len(str(number)))) + str(number)
     scan = np.fromfile(PATH + "velodyne/" + file_name + ".bin", dtype=np.float32)
     scan = scan.reshape((-1, 4))
-    intensities = scan[:,3]
-    pts = scan[:,0:3]
-    
+    intensities = scan[:, 3]
+    pts = scan[:, 0:3]
+
     pose = POSES[number]
-    pose = np.vstack((pose, [0,0,0,1]))
-    pts = transform_mat(pts, pose).reshape(-1,3)
-    
+    pose = np.vstack((pose, [0, 0, 0, 1]))
+    pts = transform_mat(pts, pose).reshape(-1, 3)
+
     return pts, intensities
 
-def get_frame_ground_mask(number):
-    '''
-    Filters out non ground objects from PCL
-            
+
+def get_frame_unsynchronized(number):
+    """
+    Loads PCL without synchronization
+
         Parameters:
             number (int): number of PCL sequence to be loaded
-        
+
+        Returns:
+            pts (numpy.array): N by 3 array of  PCL
+            intensities (numpy.array): N by 1 array of intensities of points in PCL
+    """
+    file_name = "0" * int(6 - (len(str(number)))) + str(number)
+    scan = np.fromfile(PATH + "velodyne/" + file_name + ".bin", dtype=np.float32)
+    scan = scan.reshape((-1, 4))
+    intensities = scan[:, 3]
+    pts = scan[:, 0:3]
+
+    return pts, intensities
+
+
+def get_frame_ground_mask(number):
+    """
+    Filters out non ground objects from PCL
+
+        Parameters:
+            number (int): number of PCL sequence to be loaded
+
         Returns:
             mask (numpy.array): array of booleans indicating which points
                 in synchronized PCL are ground
-            
-    '''
-    #pts, intensities = get_frame(number)
+
+    """
+    # pts, intensities = get_frame(number)
     file_name = "0" * int(6 - (len(str(number)))) + str(number)
     labels = np.fromfile(PATH + "labels/" + file_name + ".label", dtype=np.uint32)
 
-    mask = np.array(labels == 40) | np.array(labels == 72) | np.array(labels == 44)\
-        | np.array(labels == 48) | np.array(labels == 49)
-        
-    
+    mask = np.array(labels == 40) | np.array(labels == 72) | np.array(labels == 44) \
+           | np.array(labels == 48) | np.array(labels == 49)
+
     return mask
 
+
 def get_frame_without_ground_mask(number):
-    '''
+    """
     Filters out ground objects form PCL
-            
+
         Parameters:
             number (int): number of PCL sequence to be loaded
-        
+
         Returns:
             mask (numpy.array): array of booleans indicating which points
                 in synchronized PCL are not ground
-    '''
-    #pts, intensities = get_frame(number)
+    """
+    # pts, intensities = get_frame(number)
     file_name = "0" * int(6 - (len(str(number)))) + str(number)
     labels = np.fromfile(PATH + "labels/" + file_name + ".label", dtype=np.uint32)
 
-    mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44)\
-        & np.array(labels != 48) & np.array(labels != 49)
-        
-    
+    mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44) \
+           & np.array(labels != 48) & np.array(labels != 49)
+
     return mask
-    
+
+
 def get_frame_without_ground(number):
-    '''
+    """
     Loads and synchronizes PCL
-    
+
         Parameters:
             number (int): number of PCL sequence to be loaded
-        
+
         Returns:
             pts (numpy.array): N by 3 array of synchronized PCL
             intensities (numpy.array): N by 1 array of intensities of points in PCL
-    '''
+    """
     file_name = "0" * int(6 - (len(str(number)))) + str(number)
     scan = np.fromfile(PATH + "velodyne/" + file_name + ".bin", dtype=np.float32)
     scan = scan.reshape((-1, 4))
-    intensities = scan[:,3]
-    pts = scan[:,0:3]
-    
+    intensities = scan[:, 3]
+    pts = scan[:, 0:3]
+
     pose = POSES[number]
-    pose = np.vstack((pose, [0,0,0,1]))
-    pts = transform_mat(pts, pose).reshape(-1,3)
-    
+    pose = np.vstack((pose, [0, 0, 0, 1]))
+    pts = transform_mat(pts, pose).reshape(-1, 3)
+
     mask = get_frame_without_ground_mask(number)
     pts = pts[mask]
     intensities = intensities[mask]
-    
+
     return pts, intensities
 
 
+def get_dynamic_points_mask(number):
+    file_name = "0" * int(6 - (len(str(number)))) + str(number)
+    labels = np.fromfile(PATH + "labels/" + file_name + ".label", dtype=np.uint32)
+
+    mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44) \
+           & np.array(labels != 48) & np.array(labels != 49) & np.array(labels != 0) \
+            & np.array(labels != 51) & np.array(labels != 81) & np.array(labels != 80) \
+           & np.array(labels != 70) & np.array(labels != 50) & np.array(labels != 52) \
+           & np.array(labels != 252) & np.array(labels != 111)
+
+    return mask
+
 # https://medium.com/@ajithraj_gangadharan/3d-ransac-algorithm-for-lidar-pcd-segmentation-315d2a51351
 def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass):
-    '''
+    """
     Apply RANSAC plane fitting for ground removal
-    
+
     Parameters:
         points (numpy.array): 3D points of PCL
         max_iterations (int): number of iterations, during each iteration a new
             plane is created
         distance_ratio_threshold (float): distance which decides inliers/outliers
-        min_inliers_to_pass (float): 
-    '''
+        min_inliers_to_pass (float):
+    """
     inliers_result = []
     outliers_result = []
 
@@ -177,10 +212,11 @@ def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass
         if len(inliers) >= min_inliers_to_pass:
             break
     # Segregate inliers and outliers from the point cloud
-    #inlier_points = points[inliers_result]
-    #outlier_points = points[outliers_result]
+    # inlier_points = points[inliers_result]
+    # outlier_points = points[outliers_result]
 
     return inliers_result, outliers_result
+
 
 # https://stackoverflow.com/questions/38754668/plane-fitting-in-a-3d-point-cloud
 def PCA(data, correlation=False, sort=True):
@@ -290,27 +326,28 @@ point, normal: array
     else:
         return point, normal
 
+
 def find_PCA_inliers_outliers(points, distance_ratio_threshold=0.2, equation=False):
-    '''
+    """
     Execute PCA ground removal
-    
+
     Parameters:
         points (numpy.array): N by 3 array of 3D points
         distance_ratio_threshold (float): threshold which decides inliers/outliers
         equation(bool) : Set the oputput plane format:
             If True return the a,b,c,d coefficients of the plane.
             If False(Default) return 1 Point and 1 Normal vector.
-    
+
     Returns:
         inliers_idx, outliers_idx (list): indicies of inliers/outliers
-    '''
+    """
     a, b, c, d = best_fitting_plane(points, True)
 
     inliers_idx = []
     outliers_idx = []
 
     plane_lenght = max(0.1, np.sqrt(a * a + b * b + c * c))
-    
+
     for idx, point in enumerate(points):
         x, y, z = point
         distance = np.fabs(a * x + b * y + c * z + d) / plane_lenght
@@ -318,35 +355,35 @@ def find_PCA_inliers_outliers(points, distance_ratio_threshold=0.2, equation=Fal
             inliers_idx.append(idx)
         else:
             outliers_idx.append(idx)
-    
+
     return inliers_idx, outliers_idx
-    
+
 
 def calculate_metrics(predicted, truth):
-    '''
+    """
     Computes precision, recall, iou from two arrays
-    
+
     Parameters:
         predicted (numpy.array): array of bools or ints, 1 means ground,
             0 means not ground
-        
+
         truth (numpy.array): array of bools or ints, 1 means ground,
             0 means not ground
-            
+
     Returns:
         precision (float)
         recall (float)
         iou (float)
-    '''
+    """
     predicted = predicted.copy().astype(int)
     truth = truth.copy().astype(int)
     TP = np.logical_and(predicted == 1, truth == 1).sum()
     TN = np.logical_and(predicted == 0, truth == 0).sum()
     FP = np.logical_and(predicted == 1, truth == 0).sum()
     FN = np.logical_and(predicted == 0, truth == 1).sum()
-    
-    precision = TP/(TP + FP)
-    recall = TP/(TP + FN)
-    iou = TP/(TP + FP + FN)
-    
+
+    precision = TP / (TP + FP)
+    recall = TP / (TP + FN)
+    iou = TP / (TP + FP + FN)
+
     return precision, recall, iou
