@@ -2,7 +2,7 @@ import numpy as np
 import os
 import tools.ground_removal as gr
 
-GRID_SIZE = 200
+GRID_SIZE = 400
 
 
 def get_voxels(number_of_frame, voxel_size=0.5):
@@ -11,8 +11,8 @@ def get_voxels(number_of_frame, voxel_size=0.5):
     return voxels
 
 
-def get_voxels2d(number, voxel_size=0.5):
-    pts, _ = gr.get_frame_without_ground(number)
+def get_voxels2d(number_of_frame, voxel_size=0.5):
+    pts, _ = gr.get_frame_without_ground(number_of_frame)
     pts = pts[:, :2]
     voxels = np.floor(pts / voxel_size).astype(int)
     return voxels
@@ -32,7 +32,7 @@ def get_translator(voxels, points):
     return translator
 
 
-def get_voxel_grid(voxel_size, num_of_time_sequences):
+def get_voxel_grid(voxel_size, first_frame, num_of_frames):
     """
     Create a N by N by T matrix of voxels, if a voxel X,Y at time T1 contains atleast
     one point from PCL, set matrix[X,Y,T1] = 1, loop through all time sequences and
@@ -42,27 +42,27 @@ def get_voxel_grid(voxel_size, num_of_time_sequences):
     """
 
     grid_range = int(GRID_SIZE / voxel_size)
-    voxel_grid = np.zeros((2 * grid_range, 2 * grid_range, num_of_time_sequences), dtype=np.int8)
-    for i in range(num_of_time_sequences):
-        pts, _ = gr.get_frame_without_ground(i)
-        v = get_voxels2d(i, voxel_size) + grid_range  # point [0,0] will be in the center of the grid
+    voxel_grid = np.zeros((2 * grid_range, 2 * grid_range, num_of_frames), dtype=np.int8)
+    for i in range(0, num_of_frames):
+        pts, _ = gr.get_frame_without_ground(i + first_frame)
+        v = get_voxels2d(i + first_frame, voxel_size) + grid_range  # point [0,0] will be in the center of the grid
         voxel_grid[v[:, 0], v[:, 1], i] = 1
 
     final_grid = np.sum(voxel_grid, axis=2)
     return final_grid
 
 
-def get_dynamic_voxels(voxel_size, num_of_time_sequences):
+def get_dynamic_voxels(voxel_size, first_frame, num_of_frames):
     grid_range = int(GRID_SIZE / voxel_size)
-    final_grid = get_voxel_grid(voxel_size, num_of_time_sequences)
+    final_grid = get_voxel_grid(voxel_size, first_frame, num_of_frames)
 
     dynamic_coords = np.where(final_grid == 1)
     dynamic_voxels = np.zeros((dynamic_coords[0].shape[0], 2))
     dynamic_voxels[:, 0] = dynamic_coords[0] - grid_range  # return the points back from offset
     dynamic_voxels[:, 1] = dynamic_coords[1] - grid_range
 
-    voxels_first = get_voxels2d(0, voxel_size)
-    voxels_last = get_voxels2d(num_of_time_sequences - 1, voxel_size)
+    voxels_first = get_voxels2d(first_frame, voxel_size)
+    voxels_last = get_voxels2d(first_frame + num_of_frames - 1, voxel_size)
 
     true_dynamic_voxels = []
     for dynamic_voxel in dynamic_voxels:
@@ -76,10 +76,12 @@ def get_dynamic_voxels(voxel_size, num_of_time_sequences):
     return true_dynamic_voxels
 
 
-def get_dynamic_points(voxel_size, num_of_time_sequences):
-    dynamic_voxels = get_dynamic_voxels(voxel_size, num_of_time_sequences)
+def get_dynamic_points(voxel_size, first_frame, num_of_frames):
+    dynamic_voxels = get_dynamic_voxels(voxel_size, first_frame, num_of_frames)
     dynamic_points = []
-    for i in range(1, num_of_time_sequences - 1):
+    # for i in range(1, num_of_time_sequences - 1): TODO change
+    for i in range(first_frame, first_frame + num_of_frames):
+        print(i)
         pts, _ = gr.get_frame_without_ground(i)
         v = get_voxels2d(i, voxel_size)
         for ii in range(len(v)):

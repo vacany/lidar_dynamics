@@ -3,7 +3,7 @@ import os
 import yaml
 import random
 
-PATH = "../../semantic_kitti_data/sequences/01/"
+PATH = "../../semantic_kitti_data/sequences/05/"
 POSES = np.loadtxt(PATH + "poses.txt")
 POSES = POSES.reshape(-1, 3, 4)
 
@@ -14,10 +14,21 @@ def transform_mat(_pts, pose):
     being synchronized across multiple sequences, meaning a rigid object will stay in place even though
     the LIDAR is moving
      """
-    calibration_tr = np.array([4.276802385584e-04, -9.999672484946e-01, -8.084491683471e-03, -1.198459927713e-02,
+    # 01
+    """calibration_tr = np.array([4.276802385584e-04, -9.999672484946e-01, -8.084491683471e-03, -1.198459927713e-02,
                                -7.210626507497e-03, 8.081198471645e-03, -9.999413164504e-01, -5.403984729748e-02,
                                9.999738645903e-01, 4.859485810390e-04, -7.206933692422e-03, -2.921968648686e-01,
+                               0, 0, 0, 1])"""
+    # 05
+    calibration_tr = np.array([-1.857739385241e-03, -9.999659513510e-01, -8.039975204516e-03, -4.784029760483e-03,
+                               -6.481465826011e-03, 8.051860151134e-03,-9.999466081774e-01, -7.337429464231e-02,
+                               9.999773098287e-01, -1.805528627661e-03, -6.496203536139e-03, -3.339968064433e-01,
                                0, 0, 0, 1])
+    # 07
+    """calibration_tr = np.array([-1.857739385241e-03, -9.999659513510e-01, -8.039975204516e-03, -4.784029760483e-03,
+                               -6.481465826011e-03, 8.051860151134e-03, -9.999466081774e-01, -7.337429464231e-02,
+                               9.999773098287e-01, -1.805528627661e-03, -6.496203536139e-03, -3.339968064433e-01,
+                               0, 0, 0, 1])"""
     tr = calibration_tr.reshape(4, 4)
     tr_inv = np.linalg.inv(tr)
     pose = np.matmul(tr_inv, np.matmul(pose, tr))
@@ -148,11 +159,33 @@ def get_dynamic_points_mask(number):
 
     mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44) \
            & np.array(labels != 48) & np.array(labels != 49) & np.array(labels != 0) \
-            & np.array(labels != 51) & np.array(labels != 81) & np.array(labels != 80) \
+           & np.array(labels != 51) & np.array(labels != 81) & np.array(labels != 80) \
            & np.array(labels != 70) & np.array(labels != 50) & np.array(labels != 52) \
            & np.array(labels != 252) & np.array(labels != 111)
 
     return mask
+
+
+def get_synchronized_frames(first_frame, num_of_frames):
+    pts, intens = get_frame(first_frame)
+    pts = np.hstack((pts, np.ones((pts.shape[0], 1)) * first_frame)) # time first_frame
+    for i in range(first_frame + 1, first_frame + num_of_frames):
+        new_pts, new_intens = get_frame(i)
+        new_pts = np.hstack((new_pts, np.ones((new_pts.shape[0], 1)) * i)) # time i
+        pts = np.concatenate((pts, new_pts))
+        intens = np.concatenate((intens, new_intens))
+    return pts, intens
+
+
+def get_synchronized_frames_without_ground(first_frame, num_of_frames):
+    pts, intens = get_frame_without_ground(first_frame)
+    pts = np.hstack((pts, np.ones((pts.shape[0], 1)) * first_frame)) # time first_frame
+    for i in range(first_frame + 1, first_frame + num_of_frames):
+        new_pts, new_intens = get_frame_without_ground(i)
+        new_pts = np.hstack((new_pts, np.ones((new_pts.shape[0], 1)) * i)) # time ig
+        pts = np.concatenate((pts, new_pts))
+        intens = np.concatenate((intens, new_intens))
+    return pts, intens
 
 # https://medium.com/@ajithraj_gangadharan/3d-ransac-algorithm-for-lidar-pcd-segmentation-315d2a51351
 def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass):

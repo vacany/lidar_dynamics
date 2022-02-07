@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrr}
+\toprule
+{} &  Precision &  Recall &    IoU &   Time \\
+Method      &            &         &        &        \\
+\midrule
+PCA         &      90.93 &   30.70 &  29.80 &   0.36 \\
+RANSAC      &      95.15 &   48.52 &  47.39 &  23.86 \\
+Range image &      87.32 &   79.40 &  71.19 &   1.59 \\
+\bottomrule
+\end{tabular}
