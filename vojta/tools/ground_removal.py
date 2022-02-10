@@ -3,10 +3,24 @@ import os
 import yaml
 import random
 
-PATH = "../../semantic_kitti_data/sequences/05/"
+PATH = "../../semantic_kitti_data/sequences/18/"
 POSES = np.loadtxt(PATH + "poses.txt")
 POSES = POSES.reshape(-1, 3, 4)
 
+
+def read_calibration_file(path):
+    file = os.path.join(path,"calib.txt")
+    calibration_tr = ""
+    with open(file) as f:
+        for ln in f:
+            if ln.startswith("Tr: "):
+                calibration_tr = ln[4:-1]
+    
+    calibration_tr = np.array(calibration_tr.split(' '), dtype=np.float64)
+    calibration_tr = calibration_tr.reshape(3,4)
+    calibration_tr = np.vstack((calibration_tr, np.array([0,0,0,1])))
+    
+    return calibration_tr
 
 def transform_mat(_pts, pose):
     """
@@ -29,7 +43,8 @@ def transform_mat(_pts, pose):
                                -6.481465826011e-03, 8.051860151134e-03, -9.999466081774e-01, -7.337429464231e-02,
                                9.999773098287e-01, -1.805528627661e-03, -6.496203536139e-03, -3.339968064433e-01,
                                0, 0, 0, 1])"""
-    tr = calibration_tr.reshape(4, 4)
+    # tr = calibration_tr.reshape(4, 4)
+    tr = read_calibration_file(PATH)
     tr_inv = np.linalg.inv(tr)
     pose = np.matmul(tr_inv, np.matmul(pose, tr))
     n, _ = _pts.shape
@@ -182,7 +197,7 @@ def get_synchronized_frames_without_ground(first_frame, num_of_frames):
     pts = np.hstack((pts, np.ones((pts.shape[0], 1)) * first_frame)) # time first_frame
     for i in range(first_frame + 1, first_frame + num_of_frames):
         new_pts, new_intens = get_frame_without_ground(i)
-        new_pts = np.hstack((new_pts, np.ones((new_pts.shape[0], 1)) * i)) # time ig
+        new_pts = np.hstack((new_pts, np.ones((new_pts.shape[0], 1)) * i)) # time i
         pts = np.concatenate((pts, new_pts))
         intens = np.concatenate((intens, new_intens))
     return pts, intens

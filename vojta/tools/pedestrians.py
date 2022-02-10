@@ -1,11 +1,35 @@
 import numpy as np
-#from tools.ground_removal import *
+# from tools.ground_removal import *
 from sklearn.cluster import DBSCAN
+
+# kitti parameters
+
+MAX_MOVEMENT_SPEED_OF_PERSON = 0.8  # meters / tenth of a second
+MIN_MOVEMENT_SPEED_OF_PERSON = 0.06  # meters / tenth of a second
+EPSILON = 0.3  # meters
+MIN_SAMPLES_PER_FRAME = 10
+MIN_WIDTH = 0.2  # meters
+MIN_LENGTH = 0.2  # meters
+MIN_HEIGHT = 0.4  # meters
+MIN_HEIGHT_CLUSTER = 0.7 # meters
+MAX_HEIGHT = 1.8  # meters
+MAX_WIDTH = 2 # meters
+MAX_LENGTH = 2 # meters
+
+PCL_HEIGTH_UPPER_BOUND = 1 # meters
+PCL_HEIGTH_LOWER_BOUND = -1 # meters
+
+GROUND_HEIGHT_OFFSET = 0.1 # meters
+MINIMAL_TIME_WINDOW_FOR_GROUND_CHECKING = 4 # frames
+MINIMAL_NUMBER_OF_GROUND_POINTS = 2 
+
+"""
+# Nuscenes parameters
 
 MAX_MOVEMENT_SPEED_OF_PERSON = 0.8  # meters / tenth of a second
 MIN_MOVEMENT_SPEED_OF_PERSON = 0.03  # meters / tenth of a second
-EPSILON = 0.3  # meters
-MIN_SAMPLES_PER_FRAME = 10
+EPSILON = 0.4  # meters
+MIN_SAMPLES_PER_FRAME = 3
 MIN_WIDTH = 0.2  # meters
 MIN_LENGTH = 0.2  # meters
 MIN_HEIGHT = 0.4  # meters
@@ -14,12 +38,16 @@ MAX_HEIGHT = 1.8  # meters
 MAX_WIDTH = 2
 MAX_LENGTH = 2
 
+PCL_HEIGTH_UPPER_BOUND = 1
+PCL_HEIGTH_LOWER_BOUND = -1
+"""
 
 def get_clusters(first_frame, num_of_frames):
     pts, _ = get_synchronized_frames_without_ground(first_frame, num_of_frames)  # X,Y,Z,Time
     clustering = DBSCAN(eps=EPSILON, min_samples=MIN_SAMPLES_PER_FRAME * num_of_frames, ).fit(pts[:, :3])
     print(f"formed {clustering.labels_.max() + 1} clusters")
     return pts, clustering
+
 
 """
 def find_pedestrians_old(first_frame, num_of_frames):
@@ -108,21 +136,31 @@ def find_pedestrians_old(first_frame, num_of_frames):
     return pts, clustering.labels_, dynamic_clusters, differences
 """
 
-def find_pedestrians(pts, times):
+
+def find_pedestrians(pts_, times_):
     """
-    :param pts: n by 3 (or more) numpy array of XYZ coords
-    :param times: n by 1 numpy array of times
-    :return: mask of moving pedestrians, clustering (result from dbscan), labels
+    :param pts: N by 3 (or more) numpy array of XYZ coords
+    :param times: N by 1 numpy array of times (must be shape of N by 1!) 
+    :return: 6 values -> cropped pts, mask of moving pedestrians (with same dimensions
+        as copped pts), clustering (result from dbscan), labels
         of dynamic clusters, average differences of each cluster, centroids
     """
+
+    
+    pts = pts_.copy()
+    times = times_.copy()
+    mask = (pts[:,2] > PCL_HEIGTH_LOWER_BOUND) & (pts[:,2] < PCL_HEIGTH_UPPER_BOUND)
+    pts = pts[mask]
+    times = times[mask]
+
     time_values = np.unique(times)
+    time_values.sort()
     num_of_frames = time_values.shape[0]
-    pts = np.concatenate((pts[:,:3], times), axis=1)
-    clustering = DBSCAN(eps=0.4, min_samples=3 * num_of_frames, ).fit(pts[:, :3])
+    pts = np.concatenate((pts[:, :3], times), axis=1)
+    clustering = DBSCAN(eps=EPSILON, min_samples=MIN_SAMPLES_PER_FRAME * num_of_frames, ).fit(pts[:, :3])
     print(f"formed {clustering.labels_.max() + 1} clusters")
     differences = []
     centroids_final = {}
-
 
     for cluster in range(0, clustering.labels_.max() + 1):
         centroids = {}
@@ -139,7 +177,7 @@ def find_pedestrians(pts, times):
         if width <= MIN_WIDTH or length <= MIN_LENGTH or height <= MIN_HEIGHT_CLUSTER \
                 or height >= MAX_HEIGHT:
             print(f"skipping cluster {cluster} because of it's size w {width}, l {length}, h {height}")
-            differences.append([0, 0, 0]) # required to retain same number of differences as number of clusters
+            differences.append([0, 0, 0])  # required to retain same number of differences as number of clusters
             continue
 
         valid = True
@@ -156,12 +194,12 @@ def find_pedestrians(pts, times):
             length = np.abs(np.max(time_points[:, 1]) - np.min(time_points[:, 1]))
             height = np.abs(np.max(time_points[:, 2]) - np.min(time_points[:, 2]))
 
-            #if (width <= MIN_WIDTH and length <= MIN_LENGTH) or height <= MIN_HEIGHT \
-             #       or height >= MAX_HEIGHT or width >= MAX_WIDTH or length >= MAX_LENGTH:
+            # if (width <= MIN_WIDTH and length <= MIN_LENGTH) or height <= MIN_HEIGHT \
+            #       or height >= MAX_HEIGHT or width >= MAX_WIDTH or length >= MAX_LENGTH:
             if height >= MAX_HEIGHT or max(width, length) >= MAX_WIDTH:
                 print(
                     f"skipping cluster {cluster} at time {time} because of it's size w {width}, l {length}, h {height}")
-                differences.append([0, 0, 0]) # required to retain same number of differences as number of clusters
+                differences.append([0, 0, 0])  # required to retain same number of differences as number of clusters
                 valid = False
                 break
 
@@ -200,16 +238,92 @@ def find_pedestrians(pts, times):
             differences.append(average_difference)
             centroids_final[cluster] = centroids
         else:
-            differences.append([0, 0, 0]) # required to retain same number of differences as number of clusters
+            differences.append([0, 0, 0])  # required to retain same number of differences as number of clusters
 
     differences = np.array(differences)
     norm_of_differences = np.linalg.norm(differences[:, 0:2], axis=1)
     dynamic_clusters = np.argwhere((norm_of_differences >= MIN_MOVEMENT_SPEED_OF_PERSON)
                                    & (norm_of_differences <= MAX_MOVEMENT_SPEED_OF_PERSON))
 
+    dynamic_clusters = dynamic_clusters.reshape(-1,)
+  
+
+    """ 
+    ---------------------------------------------------------------------------------------------
+    check whether the ground below the pedestrian is still visible after some frames if it is not
+    then we cannot say with certainity if the dynamic object is pedestrian    
+    """
+    
+    
+    print("\n---------second wave of filtering--------------\n")
+    filtered_dynamic_clusters = []
+    print(f"considering {dynamic_clusters}")
+    for cluster in dynamic_clusters:    
+        single_cluster_mask = clustering.labels_ == cluster
+        
+        # find first time the object is visible
+        first_time = -1
+        for time in time_values:
+            if np.sum(pts[:,3][single_cluster_mask] == time) > 0:
+                first_time = time
+                break 
+               
+        if (time_values[-1] - first_time) < MINIMAL_TIME_WINDOW_FOR_GROUND_CHECKING:
+            print(f"skipping cluster {cluster} because it is not observed in enough frames,"
+                  f"first time of observation is {first_time}")
+            continue # skipping this cluster, declaring it static
+            
+        time_mask = pts[:,3][single_cluster_mask] == first_time
+        
+        # bounding box
+        bb_x_min =  pts[:,0][single_cluster_mask][time_mask].min()
+        bb_x_max =  pts[:,0][single_cluster_mask][time_mask].max()
+        bb_y_min =  pts[:,1][single_cluster_mask][time_mask].min()
+        bb_y_max =  pts[:,1][single_cluster_mask][time_mask].max()
+        bb_z_min = pts[:,2][single_cluster_mask][time_mask].min()
+        
+        bb_mask = (pts_[:,0] < bb_x_max) & (pts_[:,0] > bb_x_min) \
+            & (pts_[:,1] < bb_y_max) & (pts_[:,1] > bb_y_min)
+        
+        if np.sum(bb_mask) == 0:
+            print("zero mask points")
+            continue
+        ground = pts_[:,2][bb_mask].min()
+        ground_mask = bb_mask & (pts_[:,2] < (ground + GROUND_HEIGHT_OFFSET))
+        
+        valid = True
+        observed_times_of_ground, num_of_points_at_time = np.unique(times_[ground_mask], return_counts=True)
+        
+        
+        print(f"cluster {cluster} ground observed at times {observed_times_of_ground}")
+        if observed_times_of_ground[num_of_points_at_time > MINIMAL_NUMBER_OF_GROUND_POINTS].shape[0] < MINIMAL_TIME_WINDOW_FOR_GROUND_CHECKING:
+            print(f"skipping cluster {cluster} because ground is only observed at times {observed_times_of_ground} at frequencies {num_of_points_at_time}")
+            continue
+        else:
+            filtered_dynamic_clusters.append(cluster)
+            
+    
+    """ --------
+            for t in observed_times_of_ground:
+                if np.sum(times_[ground_mask] == t) < MINIMAL_NUMBER_OF_GROUND_POINTS:
+                    print(f"skipping cluster {cluster} because at time {t} there are too few ground points")
+                    valid = False
+                    break
+            if valid:
+                filtered_dynamic_clusters.append(cluster)
+   """
+    
+    
+    """
+    ---------------------------------------------------------------------------------------------
+    """
+    
+    
+    #filtered_dynamic_clusters = dynamic_clusters
+    
     dynamic_mask = np.array([False * clustering.labels_.shape[0]])
-    for dyn_cluster in dynamic_clusters:
+    for dyn_cluster in filtered_dynamic_clusters:
         dynamic_mask = dynamic_mask | (clustering.labels_ == dyn_cluster)
 
     dynamic_mask = dynamic_mask.astype(bool)
-    return dynamic_mask,clustering, dynamic_clusters, differences, centroids_final
+    return pts, dynamic_mask, clustering, filtered_dynamic_clusters, differences, centroids_final
