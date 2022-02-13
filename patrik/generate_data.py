@@ -22,14 +22,17 @@ if __name__ == "__main__":
      #TODO Refactor
     if dataset_choice == 0:
         config = load_yaml('cool_model/semantic-kitti.yaml')
-        dataset = SemKittiDataset(prev=15, sequence=[sequence])
+        dataset = SemKittiDataset(prev=config['PEDESTRIAN']['NBR_OF_FRAMES'], sequence=[sequence])
+        sequence = f"{sequence:02d}"
+        if int(sequence) > 20:
+            raise OSError("SEMANTIC KITTI HAS ONLY 20 SEQUNCES!")
     elif dataset_choice == 1:
         config = load_yaml('cool_model/once.yaml')
-        dataset = Once_dataset(sequences=['000113', '000027'])
+        sequence = f"{sequence:06d}"
+        dataset = Once_dataset(sequences=[sequence])
+
     else:
         raise NotImplemented('Nuscenes not implemented yet')
-
-
 
 
     root_dir = protocol.default_root_dir()
@@ -39,16 +42,21 @@ if __name__ == "__main__":
 
     config['exp_root'] = exp_root
 
-    protocol.exp_structure(exp_root=exp_root, sequence=f"{sequence:02d}", config=config)
+    protocol.exp_structure(exp_root=exp_root, sequence=sequence, config=config)
 
-    labeler = Annotator(config)
+    annotator = Annotator(config)
 
-    # metric = IOU(num_classes=8, ignore_cls=7)
-
+    # from torch.utils.data import DataLoader
+    # annotator = DataLoader(annotator, batch_size=4, num_workers=8)
 
     # all_poses = dataset.meta_data[sequence]['poses']
 
     # labeler.initiate_hd_map(all_poses)
 
+    # metric = IOU(num_classes=8, ignore_cls=7)
     # Maybe refactor to remove sequence, but after submission
-    labeler.run_annotation(dataset, sequence=sequence)
+    annotator.run_annotation(dataset, sequence=sequence)
+
+
+
+

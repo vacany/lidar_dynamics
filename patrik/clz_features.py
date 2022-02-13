@@ -127,7 +127,7 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
     num_of_frames = time_values.shape[0]
     # pts = np.concatenate((pts[:, :3], times), axis=1)
     clustering = DBSCAN(eps=EPSILON, min_samples=MIN_SAMPLES_PER_FRAME * num_of_frames, ).fit(pts_cropped[:, :3])
-    print(f"formed {clustering.labels_.max() + 1} clusters")
+    # print(f"formed {clustering.labels_.max() + 1} clusters")
     differences = []
     centroids_final = {}
 
@@ -146,7 +146,7 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
 
         if width <= MIN_WIDTH or length <= MIN_LENGTH or height <= MIN_HEIGHT_CLUSTER \
                 or height >= MAX_HEIGHT:
-            print(f"skipping cluster {cluster} because of it's size w {width}, l {length}, h {height}")
+            # print(f"skipping cluster {cluster} because of it's size w {width}, l {length}, h {height}")
             differences.append([0, 0, 0])  # required to retain same number of differences as number of clusters
             continue
 
@@ -169,8 +169,8 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
             # if (width <= MIN_WIDTH and length <= MIN_LENGTH) or height <= MIN_HEIGHT \
             #       or height >= MAX_HEIGHT or width >= MAX_WIDTH or length >= MAX_LENGTH:
             if height >= MAX_HEIGHT or max(width, length) >= MAX_WIDTH:
-                print(
-                        f"skipping cluster {cluster} at time {time} because of it's size w {width}, l {length}, h {height}")
+                # print(
+                #         f"skipping cluster {cluster} at time {time} because of it's size w {width}, l {length}, h {height}")
                 differences.append([0, 0, 0])  # required to retain same number of differences as number of clusters
                 valid = False
                 break
@@ -182,8 +182,8 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
             # skipping this cluster
             continue
 
-        if len(message) > 0:
-            print(message + "\n")
+        # if len(message) > 0:
+        #     print(message + "\n")
 
         # compute pairwise difference e.g: centroid[1] - centroid[0], centroid[2] - centroid[1]...
         centroids_keys = list(centroids.keys())
@@ -200,8 +200,8 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
                     num_of_differences += 1
                 else:
                     valid = False
-                    print(f"cluster {cluster} invalid because norm of difference at "
-                          f"time {centroids_keys[i + 1]} and {centroids_keys[i]} is {norm_of_difference_xy} ")
+                    # print(f"cluster {cluster} invalid because norm of difference at "
+                    #       f"time {centroids_keys[i + 1]} and {centroids_keys[i]} is {norm_of_difference_xy} ")
                     break
 
         if valid and num_of_differences > 0:
@@ -225,9 +225,9 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
     then we cannot say with certainity if the dynamic object is pedestrian    
     """
 
-    print("\n---------second wave of filtering--------------\n")
+    # print("\n---------second wave of filtering--------------\n")
     filtered_dynamic_clusters = []
-    print(f"considering {dynamic_clusters}")
+    # print(f"considering {dynamic_clusters}")
     for cluster in dynamic_clusters:
         single_cluster_mask = clustering.labels_ == cluster
 
@@ -237,10 +237,10 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
             if np.sum(times_cropped[single_cluster_mask] == time) > 1:  # to make sure there are atleast two points
                 first_time = time
                 break
-        print(f"cluster {cluster} first time = {first_time}")
+        # print(f"cluster {cluster} first time = {first_time}")
         if (time_values[-1] - first_time) < MINIMAL_TIME_WINDOW_FOR_GROUND_CHECKING:
-            print(f"skipping cluster {cluster} because it is not observed in enough frames,"
-                  f"first time of observation is {first_time}")
+            # print(f"skipping cluster {cluster} because it is not observed in enough frames,"
+            #       f"first time of observation is {first_time}")
             continue  # skipping this cluster, declaring it static
 
         time_mask = times_cropped[single_cluster_mask] == first_time
@@ -257,7 +257,7 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
                   & (pts_uncropped[:, 1] < bb_y_max) & (pts_uncropped[:, 1] > bb_y_min)
 
         if np.sum(bb_mask) == 0:
-            print("zero mask points")
+            # print("zero mask points")
             continue
         ground = pts_uncropped[:, 2][bb_mask].min()
         ground = max(ground, bb_z_min - MAXIMAL_DISTANCE_FROM_GROUND)  # make sure there is no more than MDFG meters
@@ -270,11 +270,11 @@ def find_pedestrians(pts_uncropped, times_uncropped, pts_cropped, times_cropped)
         valid = True
         observed_times_of_ground, num_of_points_at_time = np.unique(times_uncropped[ground_mask], return_counts=True)
 
-        print(f"cluster {cluster} ground observed at times {observed_times_of_ground}")
+        # print(f"cluster {cluster} ground observed at times {observed_times_of_ground}")
         if observed_times_of_ground[num_of_points_at_time > MINIMAL_NUMBER_OF_GROUND_POINTS].shape[
             0] < MINIMAL_TIME_WINDOW_FOR_GROUND_CHECKING:
-            print(
-                f"skipping cluster {cluster} because ground is only observed at times {observed_times_of_ground} at frequencies {num_of_points_at_time}")
+            # print(
+            #     f"skipping cluster {cluster} because ground is only observed at times {observed_times_of_ground} at frequencies {num_of_points_at_time}")
             continue
         else:
             filtered_dynamic_clusters.append(cluster)

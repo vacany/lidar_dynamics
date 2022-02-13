@@ -24,6 +24,7 @@ def exp_structure(exp_root, sequence, config):
     config_file = exp_root + '/config.yaml'
     images = exp_root + '/images'
     gen_labels = exp_root + f'/data/{sequence}/gen_labels'
+    per_frame_meta = exp_root + f'data/{sequence}/_per_frame'
 
     for folder in [exp_root, images, gen_labels]:
         os.makedirs(folder, exist_ok=True)
