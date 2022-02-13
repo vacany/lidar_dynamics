@@ -9,9 +9,10 @@ Vojta:
 
 Patrik:
 - Github kody + scripty
-- Vygenerovat data
+- Vygenerovat data 
 - PointPillars, SPVNAS, Cylinder 3D
 - Tabulka Experimentu
 - SOTA - pri psani
 
-Nuscenes?
+
+A2D2, Lyft, Nuscenes?
