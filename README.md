@@ -1,6 +1,7 @@
 # lidar_dynamics
 
 Vojta:
+- SECOND na vygenerovanych datech
 - 1) Kitti parametry pro lidi na 18 sekvenci - 100 framu
 - 2) upgrade dynamickych objektu - cesta pod nima
 - 3) Modely Second, CenterPoint, (optional PV-RCNN)
