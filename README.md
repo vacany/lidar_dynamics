@@ -15,5 +15,10 @@ Patrik:
 - Tabulka Experimentu
 - SOTA - pri psani
 
-
 A2D2, Lyft, Nuscenes?
+
+Novelty 
+- High Precisions is all you need
+- Ground removal - Hd Map
+- Intensity based detection
+- Unsupervised / Few-shot? Annotation 
