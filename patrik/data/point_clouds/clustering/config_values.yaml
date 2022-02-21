@@ -1,0 +1,27 @@
+# different methods, calculate metrics, building, clusters, trajectory etc...
+
+inten_threshold: 0.95 # Neni tak citlive
+add_ground_height: 0.2
+ego_height: -1.73
+
+cluster_distance: 0.7
+min_samples_inten: 10
+
+license_sign_z_var: 0.3
+traffic_sign_z_var: 0.3
+
+building_min_dist: 6
+
+
+
+
+clz_names:
+  'Background' : 0
+  'Vehicle' : 1
+  'Pedestrian' : 2
+  'Cyclist' : 3 # both motor and bycyclist
+  'Drivable Area' : 4
+  'Traffic Sign' : 5
+  'outlier' : 6
+  'Moving_on_DA' : 10
+  'Inten_Cluster' : 11
