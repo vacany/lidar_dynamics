@@ -3,7 +3,7 @@ import os
 import yaml
 import random
 
-PATH = "../../semantic_kitti_data/sequences/18/"
+PATH = "../../semantic_kitti_data/sequences/01/"
 POSES = np.loadtxt(PATH + "poses.txt")
 POSES = POSES.reshape(-1, 3, 4)
 
@@ -51,6 +51,14 @@ def transform_mat(_pts, pose):
     x = np.hstack((_pts, np.ones((n, 1))))
     x = np.matmul(pose, x.transpose()).transpose()
     return x[:, 0:3]
+
+
+def get_synchronized_origin(number):
+    pose = POSES[number]
+    pose = np.vstack((pose, [0, 0, 0, 1]))
+    origin = np.array([0,0,0]).reshape(1,-1)
+    origin = transform_mat(origin, pose).flatten()
+    return origin
 
 
 def get_frame(number):
