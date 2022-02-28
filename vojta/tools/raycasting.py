@@ -1,11 +1,12 @@
 import numpy as np
 from scipy.spatial import KDTree
 from mayavi import mlab
+from sklearn.cluster import DBSCAN
 
-MAX_WIDTH = 3
-MAX_LENGTH = 6
-MAX_HEIGTH = 2
-MIN_LENGTH = 1
+#MAX_WIDTH = 3
+#MAX_LENGTH = 6
+#MAX_HEIGTH = 2
+#MIN_LENGTH = 1
 
 
 def send_raycast(pts, target, target_points_indices = [], origin=[0,0,0], radius=0.3, fig=None):
@@ -46,7 +47,7 @@ def send_raycast(pts, target, target_points_indices = [], origin=[0,0,0], radius
     return None
 
 
-def eliminate_objects_by_size(pts, labels):
+def eliminate_objects_by_size(pts, labels, config, verbose=False):
     '''
     Parameters:
         pts (numpy Nx3 array): point cloud
@@ -70,15 +71,63 @@ def eliminate_objects_by_size(pts, labels):
         length = max(abs(bb_x_max - bb_x_min), abs(bb_y_max - bb_y_min))
         height = abs(bb_z_max - bb_z_min)
 
-        if length > MAX_LENGTH or length < MIN_LENGTH:
-            print(f"skipping cluster {cluster} because of its length {length}")
+        if length > config['MAX_LENGTH'] or length < config['MIN_LENGTH']:
+            if verbose:
+                print(f"skipping cluster {cluster} because of its length {length}")
             continue
-        if width > MAX_WIDTH:
-            print(f"skipping cluster {cluster} because of its width {width}")
+        if width > config['MAX_WIDTH']:
+            if verbose:
+                print(f"skipping cluster {cluster} because of its width {width}")
             continue
-        if height > MAX_HEIGTH:
-            print(f"skipping cluster {cluster} because of its height {height}")
+        if height > config['MAX_HEIGTH']:
+            if verbose:
+                print(f"skipping cluster {cluster} because of its height {height}")
             continue
         valid_clusters.append(cluster)
     return np.array(valid_clusters)
             
+
+def find_dynamic_objects(pts, pts2, origin, config, figure=None):
+    '''
+    Parameters:
+        pts (numpy Nx3 array): pointcloud from time T
+        pts2 (numpy Mx3 array): pointcloud from time T+n, n >=1
+        origin (numpy 1x3 array): coordinates of synchronized origin (coords of lidar)
+        config (dictionary): configuration dict of constants
+        figure (mayavi.mlab figure): figure to plot to
+    Returns:
+        mask (numpy Nx1 array): mask of bools describing dynamic points 
+    '''
+    # get clusters filtered by size parameters specified in config
+    clustering = DBSCAN(eps=config['EPS'], min_samples=config['MIN_SAMPLES']).fit(pts[:,:3])
+    valid_clusters = eliminate_objects_by_size(pts, clustering.labels_, config, verbose=False)
+
+    # get moving objects
+    tree = KDTree(pts2[:,:3])
+    potentially_moving_clusters = []
+    for cluster in valid_clusters:
+        cluster_mask = clustering.labels_ == cluster
+        centroid = np.mean(pts[:,:3][cluster_mask], axis=0)
+        points_close_to_centroid = tree.query_ball_point(centroid, config['RADIUS_EMPTY_SPACE_CHECK'])
+        if len(points_close_to_centroid) == 0:
+            # no points around what was previously a centroid of an object, meaning the object
+            # must have moved or it cannot be seen because of other objects bloking it
+            potentially_moving_clusters.append(cluster)
+    
+    # use raycasting to check whether we can see the approximate are of suspicious centroids, if so then
+    # we proclaim them dynamic, if not, we cannot decide if they are dynamic or not
+    true_dynamic_objects = []
+    for moving_cluster in potentially_moving_clusters:
+        cluster_mask = clustering.labels_ == moving_cluster
+        centroid = np.mean(pts[:,:3][cluster_mask], axis=0)
+        response = send_raycast(pts2, target=centroid,
+                                origin=origin, radius=config['RADIUS_RAYCAST'], fig=figure)
+        if response is None:
+            true_dynamic_objects.append(moving_cluster)
+    
+    print(f"dynamic objects: {true_dynamic_objects}")
+    dynamic_mask = np.array([False * pts.shape[0]])
+    for cluster in true_dynamic_objects:
+        dynamic_mask = dynamic_mask | (clustering.labels_ == cluster)
+    dynamic_mask = dynamic_mask.astype(bool)
+    return dynamic_mask
