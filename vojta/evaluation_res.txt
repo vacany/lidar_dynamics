@@ -1,0 +1,44 @@
+class CAR
+    sequence: 01
+        frame: 000000 ->precision 1.0, recall 0.81, iou 0.81
+        frame: 000001 ->precision 0.97, recall 0.93, iou 0.9
+        frame: 000002 ->precision 0.85, recall 0.89, iou 0.77
+        frame: 000003 ->precision 1.0, recall 0.76, iou 0.76
+        frame: 000004 ->precision 1.0, recall 0.81, iou 0.81
+        frame: 000005 ->precision 1.0, recall 0.92, iou 0.92
+        frame: 000006 ->precision 1.0, recall 0.9, iou 0.9
+        frame: 000007 ->precision 1.0, recall 0.6, iou 0.6
+        frame: 000390 ->precision 0.95, recall 0.96, iou 0.91
+        frame: 000391 ->precision 1.0, recall 0.97, iou 0.97
+        frame: 000392 ->precision 1.0, recall 0.95, iou 0.95
+        frame: 000393 ->precision 0.98, recall 0.96, iou 0.94
+        frame: 000394 ->precision 1.0, recall 0.98, iou 0.98
+        frame: 000395 ->precision 1.0, recall 0.96, iou 0.96
+        frame: 000396 ->precision 0.98, recall 0.97, iou 0.95
+    average sequence precision 0.98, average sequence recall 0.89, average sequence iou 0.87
+    sequence: 05
+        frame: 000580 ->precision 1, recall 0.0, iou 0.0
+        frame: 000581 ->precision 1, recall 0.0, iou 0.0
+        frame: 000582 ->precision 1, recall 0.0, iou 0.0
+        frame: 000583 ->precision 1, recall 0.0, iou 0.0
+        frame: 000584 ->precision 1, recall 0.0, iou 0.0
+        frame: 000600 ->precision 1, recall 0.0, iou 0.0
+        frame: 000601 ->precision 1, recall 0.0, iou 0.0
+        frame: 000602 ->precision 1, recall 0.0, iou 0.0
+        frame: 000603 ->precision 0, recall 0.0, iou 0.0
+        frame: 000604 ->precision 1, recall 1, iou 1
+    average sequence precision 0.9, average sequence recall 0.1, average sequence iou 0.1
+    sequence: 07
+        frame: 000000 ->precision 1, recall 1, iou 1
+        frame: 000001 ->precision 1, recall 1, iou 1
+        frame: 000002 ->precision 1, recall 1, iou 1
+        frame: 000003 ->precision 1, recall 1, iou 1
+        frame: 000004 ->precision 1, recall 1, iou 1
+        frame: 000011 ->precision 1, recall 1, iou 1
+        frame: 000012 ->precision 1, recall 0.0, iou 0.0
+        frame: 000013 ->precision 1, recall 0.0, iou 0.0
+        frame: 000014 ->precision 1, recall 1, iou 1
+        frame: 000015 ->precision 1, recall 1, iou 1
+    average sequence precision 1.0, average sequence recall 0.8, average sequence iou 0.8
+for class CAR on KITTI dataset, the final average metrics are: precision 0.96 recall 0.64 and iou 0.63
+evaluation finished in 43.3 seconds
