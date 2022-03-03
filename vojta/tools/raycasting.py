@@ -59,7 +59,7 @@ class RaycastPredictor():
         distance = np.linalg.norm(target)
         num_of_checks = int(np.ceil((distance/radius) * 0.8)) # constant multiplication to make the spheres overlap less
         if self.verbose:
-            print(f"Number of checks for raycast is {num_of_checks}")
+            print(f"Number of checks for raycast is {num_of_checks}", end=', ')
 
         # remove points that are part of ego so that they do not interfere with ray casting
         tree = KDTree(pts[:,:3])
@@ -132,6 +132,20 @@ class RaycastPredictor():
             valid_clusters.append(cluster)
         return np.array(valid_clusters)
             
+    
+    def get_potentionaly_moving_clusters(self, pts_current, pts_next, clustering, valid_clusters):
+        tree = KDTree(pts_next[:,:3])
+        potentially_moving_clusters = []
+        for cluster in valid_clusters:
+            cluster_mask = clustering.labels_ == cluster
+            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
+            points_close_to_centroid = tree.query_ball_point(centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
+            if len(points_close_to_centroid) == 0:
+                # no points around what was previously a centroid of an object, meaning the object
+                # must have moved or it cannot be seen because of other objects bloking it
+                potentially_moving_clusters.append(cluster)
+        return potentially_moving_clusters
+
 
     def find_dynamic_objects(self, pts_current, pts_future, pts_past, origin_future, origin_past):
         '''
@@ -147,36 +161,43 @@ class RaycastPredictor():
         valid_clusters = self.eliminate_objects_by_size(pts_current, clustering.labels_)
 
         # get moving objects
-        tree = KDTree(pts_future[:,:3])
-        potentially_moving_clusters = []
-        for cluster in valid_clusters:
-            cluster_mask = clustering.labels_ == cluster
-            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
-            points_close_to_centroid = tree.query_ball_point(centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
-            if len(points_close_to_centroid) == 0:
-                # no points around what was previously a centroid of an object, meaning the object
-                # must have moved or it cannot be seen because of other objects bloking it
-                potentially_moving_clusters.append(cluster)
+        potentially_moving_clusters_future = self.get_potentionaly_moving_clusters(pts_current, 
+                                                pts_future, clustering, valid_clusters)
+        if pts_past is not None:
+            potentially_moving_clusters_past = self.get_potentionaly_moving_clusters(pts_current, 
+                                                pts_past, clustering, valid_clusters)
         
         # use raycasting to check whether we can see the approximate are of suspicious centroids, if so then
         # we proclaim them dynamic, if not, we cannot decide if they are dynamic or not
+       # look few frames into the future
         true_dynamic_objects = []
-        for moving_cluster in potentially_moving_clusters:
+        for moving_cluster in potentially_moving_clusters_future:
+            if self.verbose:
+                print(f"ray casting to cluster {moving_cluster} to future", end=' : ')
             cluster_mask = clustering.labels_ == moving_cluster
-            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
-            # look few frames into future
+            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)    
             response = self.send_raycast(pts_future, target=centroid,
                                     origin=origin_future, radius=self.config['RADIUS_RAYCAST'])
             if response is None:
                 true_dynamic_objects.append(moving_cluster)
-            elif response is not None and pts_past is not None:
-                # look few frames into past
+        
+        # look few frames into the past
+        if pts_past is not None:
+            # avoid duplicates
+            potentially_moving_clusters_past = [x for x in potentially_moving_clusters_past if x not in true_dynamic_objects ]
+
+            for moving_cluster in potentially_moving_clusters_past:
+                if self.verbose:
+                    print(f"ray casting to cluster {moving_cluster} to past", end=' : ')
+                cluster_mask = clustering.labels_ == moving_cluster
+                centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
                 response = self.send_raycast(pts_past, target=centroid,
-                                    origin=origin_past, radius=self.config['RADIUS_RAYCAST'])
+                                        origin=origin_past, radius=self.config['RADIUS_RAYCAST'])
                 if response is None:
                     true_dynamic_objects.append(moving_cluster)
+                
 
-        
+
         if self.verbose:
             print(f"dynamic objects: {true_dynamic_objects}")
         dynamic_mask = np.array([False * pts_current.shape[0]])

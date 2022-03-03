@@ -41,7 +41,10 @@ def evaluate_kitti(config, Predictor_class, predictor_config, verbose=True, file
                 file.write(f"        frame: {frame} -> ")
                 frame_num = int(frame)
                 prediction = Predictor.predict(frame_num)
-                ground_truth = gr.get_moving_cars_mask(frame_num)
+                if _class == 'CAR':
+                    ground_truth = gr.get_moving_cars_mask(frame_num)
+                elif _class == 'PEDESTRIAN':
+                    ground_truth = gr.get_moving_pedestrians_mask(frame_num)
                 precision, recall, iou = calculate_metrics(prediction, ground_truth)
                 if verbose:
                     print(f"precision {np.round(precision * 100,2)}%, recall {np.round(recall * 100,2)}%,"
@@ -54,10 +57,10 @@ def evaluate_kitti(config, Predictor_class, predictor_config, verbose=True, file
             if verbose:
                 print(f"    average sequence precision {np.round(sequence_precision/len(frames)*100,2)}%, "
                     f"average sequence recall {np.round(sequence_recall/len(frames)*100, 2)}%,"
-                    f" average sequence iou {np.round(sequence_iou/len(frames)*100,2)}%")
+                    f" average sequence iou {np.round(sequence_iou/len(frames)*100,2)}%\n")
             file.write(f"    average sequence precision {np.round(sequence_precision/len(frames)*100,2)}%, "
                     f"average sequence recall {np.round(sequence_recall/len(frames)*100, 2)}%,"
-                    f" average sequence iou {np.round(sequence_iou/len(frames)*100,2)}%")
+                    f" average sequence iou {np.round(sequence_iou/len(frames)*100,2)}%\n\n")
             mean_precision += sequence_precision; mean_recall += sequence_recall; mean_iou += sequence_iou
         
         mean_precision /= num_of_frames; mean_recall /= num_of_frames; mean_iou /= num_of_frames
@@ -73,9 +76,9 @@ def evaluate_kitti(config, Predictor_class, predictor_config, verbose=True, file
             print(f'evaluation finished in {np.round(end - start, 1)} seconds')
         file.write(f'evaluation finished in {np.round(end - start, 1)} seconds\n\n')
 
-        if opened_file:
-            file.close()
-        return [mean_precision, mean_recall, mean_iou]
+    if opened_file:
+        file.close()
+    return [mean_precision, mean_recall, mean_iou]
 
 def recursive_search(x, evaluation_config, Predictor, predictor_config, res_dict, file=None):
     local_copy = copy.deepcopy(x)

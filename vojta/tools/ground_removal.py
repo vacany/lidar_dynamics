@@ -205,6 +205,12 @@ class Ground_removal:
         return mask
 
 
+    def get_moving_pedestrians_mask(self, number):
+        labels = self.get_labels(number)
+        mask = np.array(labels == 254)
+        return mask
+
+
     def get_synchronized_frames(self, first_frame, num_of_frames):
         pts, intens = self.get_frame(first_frame)
         pts = np.hstack((pts, np.ones((pts.shape[0], 1)) * first_frame)) # time first_frame
