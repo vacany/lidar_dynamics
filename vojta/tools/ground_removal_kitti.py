@@ -1,21 +1,9 @@
-import collections
-import os
-import random
-import pickle
-import sys
-import time
-
-import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from scipy.interpolate import griddata
 from scipy.signal import savgol_filter
-from scipy import interpolate
-import math
 import numpy as np
+from tools.semantic_kitti_api.auxiliary.laserscan import *
 
-from matplotlib.cm import hsv
+
 
 MIN_ANGLE_DEG = -24.9
 MIN_ANGLE_RAD = MIN_ANGLE_DEG * np.pi / 180.
@@ -174,3 +162,19 @@ def fill_invalid_pts_ground(ground_labels, invalid_pts):
                 r + 1, c]
 
     return ground_labels_filled
+
+
+def remove_ground(pts):
+    scan = LaserScan(project=True, fov_up=2.0, fov_down=MIN_ANGLE_DEG)
+    scan.set_points(pts)
+    range_image_repaired = repair_depth(scan.proj_range)
+    angles, angles_filtered = compute_angles(range_image_repaired)
+    ground_labels = label_ground(angles_filtered, range_image_repaired)
+    invalid = np.where(range_image_repaired[:-1] <= 0.001)
+    ground_labels = fill_invalid_pts_ground(ground_labels, invalid)
+    projected_predicted_ground = np.vstack((np.zeros(ground_labels.shape[1]), ground_labels))
+    pts_without_ground = scan.proj_xyz[~projected_predicted_ground.astype(bool)]
+    # remove all [-1,-1,-1] which remain after projection
+    pts_without_ground = pts_without_ground[np.argwhere(pts_without_ground != [-1.,-1.,-1.])[:,0]] 
+    
+    return pts_without_ground

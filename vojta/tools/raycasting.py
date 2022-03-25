@@ -24,9 +24,16 @@ class RaycastPredictor():
     def predict(self, num_of_frame):
         pts_current, _ = self.Dataloader.get_frame_without_ground(num_of_frame)
         pts_future, _ = self.Dataloader.get_frame_without_ground(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
+
+        #pts_current, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame)
+        #pts_future, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
+
         origin_future = self.Dataloader.get_synchronized_origin(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
         if num_of_frame - self.config['NUM_OF_FRAMES_IN_FUTURE'] >= 0:
             pts_past, _ = self.Dataloader.get_frame_without_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
+            
+           # pts_past, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
+            
             origin_past = self.Dataloader.get_synchronized_origin(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
         else:
             pts_past = None
@@ -125,10 +132,11 @@ class RaycastPredictor():
                 if self.verbose:
                     print(f"skipping cluster {cluster} because of its width {width}")
                 continue
-            if height > self.config['MAX_HEIGTH']:
+            if height > self.config['MAX_HEIGTH'] or height < self.config['MIN_HEIGTH']:
                 if self.verbose:
                     print(f"skipping cluster {cluster} because of its height {height}")
                 continue
+
             valid_clusters.append(cluster)
         return np.array(valid_clusters)
             
@@ -140,6 +148,7 @@ class RaycastPredictor():
             cluster_mask = clustering.labels_ == cluster
             centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
             points_close_to_centroid = tree.query_ball_point(centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
+            
             if len(points_close_to_centroid) == 0:
                 # no points around what was previously a centroid of an object, meaning the object
                 # must have moved or it cannot be seen because of other objects bloking it

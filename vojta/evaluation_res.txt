@@ -1,3 +1,51 @@
+class CAR
+    sequence: 01
+        frame: 000000 -> precision 100.0%, recall 53.8%, iou 53.8%
+        frame: 000001 -> precision 100.0%, recall 56.98%, iou 56.98%
+        frame: 000002 -> precision 92.31%, recall 59.18%, iou 56.4%
+        frame: 000003 -> precision 100.0%, recall 61.46%, iou 61.46%
+        frame: 000004 -> precision 100.0%, recall 32.13%, iou 32.13%
+        frame: 000005 -> precision 100.0%, recall 26.42%, iou 26.42%
+        frame: 000006 -> precision 100.0%, recall 20.45%, iou 20.45%
+        frame: 000007 -> precision 100.0%, recall 24.81%, iou 24.81%
+        frame: 000390 -> precision 89.74%, recall 60.57%, iou 56.65%
+        frame: 000391 -> precision 99.81%, recall 62.5%, iou 62.43%
+        frame: 000392 -> precision 99.63%, recall 65.62%, iou 65.46%
+        frame: 000393 -> precision 100.0%, recall 72.44%, iou 72.44%
+        frame: 000394 -> precision 98.88%, recall 70.72%, iou 70.16%
+        frame: 000395 -> precision 99.71%, recall 70.34%, iou 70.2%
+        frame: 000396 -> precision 99.61%, recall 72.58%, iou 72.37%
+    average sequence precision 98.65%, average sequence recall 54.0%, average sequence iou 53.48%
+
+    sequence: 05
+        frame: 000580 -> precision 100.0%, recall 32.71%, iou 32.71%
+        frame: 000581 -> precision 100.0%, recall 33.16%, iou 33.16%
+        frame: 000582 -> precision 100.0%, recall 38.69%, iou 38.69%
+        frame: 000583 -> precision 100.0%, recall 34.18%, iou 34.18%
+        frame: 000584 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000600 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000601 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000602 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000603 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000604 -> precision 100%, recall 100%, iou 100%
+    average sequence precision 100.0%, average sequence recall 23.87%, average sequence iou 23.87%
+
+    sequence: 07
+        frame: 000000 -> precision 100%, recall 100%, iou 100%
+        frame: 000001 -> precision 100%, recall 100%, iou 100%
+        frame: 000002 -> precision 100%, recall 100%, iou 100%
+        frame: 000003 -> precision 100%, recall 100%, iou 100%
+        frame: 000004 -> precision 100%, recall 100%, iou 100%
+        frame: 000011 -> precision 100%, recall 100%, iou 100%
+        frame: 000012 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000013 -> precision 100%, recall 0.0%, iou 0.0%
+        frame: 000014 -> precision 100%, recall 100%, iou 100%
+        frame: 000015 -> precision 100%, recall 100%, iou 100%
+    average sequence precision 100.0%, average sequence recall 80.0%, average sequence iou 80.0%
+
+for class CAR on KITTI dataset, the final average metrics are: precision 99.42% recall 52.82% and iou 52.6%
+evaluation finished in 32.5 seconds
+
 class PEDESTRIAN
     sequence: 01
         frame: 000000 -> precision 100%, recall 100%, iou 100%
@@ -8,14 +56,14 @@ class PEDESTRIAN
         frame: 000005 -> precision 100%, recall 100%, iou 100%
         frame: 000006 -> precision 100%, recall 100%, iou 100%
         frame: 000007 -> precision 100%, recall 100%, iou 100%
-        frame: 000390 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000391 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000392 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000393 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000394 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000395 -> precision 0%, recall 100%, iou 0.0%
-        frame: 000396 -> precision 0%, recall 100%, iou 0.0%
-    average sequence precision 53.33%, average sequence recall 100.0%, average sequence iou 53.33%
+        frame: 000390 -> precision 100%, recall 100%, iou 100%
+        frame: 000391 -> precision 100%, recall 100%, iou 100%
+        frame: 000392 -> precision 100%, recall 100%, iou 100%
+        frame: 000393 -> precision 100%, recall 100%, iou 100%
+        frame: 000394 -> precision 100%, recall 100%, iou 100%
+        frame: 000395 -> precision 100%, recall 100%, iou 100%
+        frame: 000396 -> precision 100%, recall 100%, iou 100%
+    average sequence precision 100.0%, average sequence recall 100.0%, average sequence iou 100.0%
 
     sequence: 05
         frame: 000580 -> precision 100%, recall 0.0%, iou 0.0%
@@ -25,24 +73,24 @@ class PEDESTRIAN
         frame: 000584 -> precision 100%, recall 0.0%, iou 0.0%
         frame: 000600 -> precision 100%, recall 100%, iou 100%
         frame: 000601 -> precision 100%, recall 0.0%, iou 0.0%
-        frame: 000602 -> precision 100%, recall 0.0%, iou 0.0%
-        frame: 000603 -> precision 100%, recall 0.0%, iou 0.0%
-        frame: 000604 -> precision 100%, recall 0.0%, iou 0.0%
-    average sequence precision 100.0%, average sequence recall 10.0%, average sequence iou 10.0%
+        frame: 000602 -> precision 100.0%, recall 51.82%, iou 51.82%
+        frame: 000603 -> precision 49.81%, recall 94.24%, iou 48.34%
+        frame: 000604 -> precision 100.0%, recall 93.15%, iou 93.15%
+    average sequence precision 94.98%, average sequence recall 33.92%, average sequence iou 29.33%
 
     sequence: 07
-        frame: 000000 -> precision 98.8%, recall 89.67%, iou 88.71%
-        frame: 000001 -> precision 99.4%, recall 91.16%, iou 90.66%
-        frame: 000002 -> precision 100.0%, recall 91.67%, iou 91.67%
-        frame: 000003 -> precision 100.0%, recall 89.66%, iou 89.66%
-        frame: 000004 -> precision 100.0%, recall 89.02%, iou 89.02%
-        frame: 000011 -> precision 100.0%, recall 92.59%, iou 92.59%
-        frame: 000012 -> precision 100.0%, recall 94.68%, iou 94.68%
-        frame: 000013 -> precision 100.0%, recall 92.93%, iou 92.93%
-        frame: 000014 -> precision 100.0%, recall 87.78%, iou 87.78%
+        frame: 000000 -> precision 99.38%, recall 86.96%, iou 86.49%
+        frame: 000001 -> precision 99.38%, recall 87.85%, iou 87.36%
+        frame: 000002 -> precision 100.0%, recall 88.89%, iou 88.89%
+        frame: 000003 -> precision 100.0%, recall 87.93%, iou 87.93%
+        frame: 000004 -> precision 100.0%, recall 80.35%, iou 80.35%
+        frame: 000011 -> precision 100.0%, recall 89.95%, iou 89.95%
+        frame: 000012 -> precision 100.0%, recall 88.3%, iou 88.3%
+        frame: 000013 -> precision 100.0%, recall 88.59%, iou 88.59%
+        frame: 000014 -> precision 100.0%, recall 83.89%, iou 83.89%
         frame: 000015 -> precision 100.0%, recall 88.51%, iou 88.51%
-    average sequence precision 99.82%, average sequence recall 90.77%, average sequence iou 90.62%
+    average sequence precision 99.88%, average sequence recall 87.12%, average sequence iou 87.02%
 
-for class PEDESTRIAN on KITTI dataset, the final average metrics are: precision 79.95% recall 71.65% and iou 51.61%
-evaluation finished in 30.6 seconds
+for class PEDESTRIAN on KITTI dataset, the final average metrics are: precision 98.53% recall 77.44% and iou 76.1%
+evaluation finished in 58.9 seconds
 

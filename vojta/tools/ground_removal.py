@@ -1,6 +1,9 @@
+from fileinput import close
 import numpy as np
 import os
 import random
+from scipy.spatial import KDTree
+from tools.ground_removal_kitti import remove_ground
 
 class Ground_removal:
     def __init__(self, sequence): 
@@ -142,9 +145,12 @@ class Ground_removal:
                     in synchronized PCL are ground
 
         """
-        labels = self.get_labels(number)
-        mask = np.array(labels == 40) | np.array(labels == 72) | np.array(labels == 44) \
-            | np.array(labels == 48) | np.array(labels == 49)
+        #labels = self.get_labels(number)
+        #mask = np.array(labels == 40) | np.array(labels == 72) | np.array(labels == 44) \
+        #    | np.array(labels == 48) | np.array(labels == 49)
+
+        file_name = "0" * int(6 - (len(str(number)))) + str(number)
+        mask = np.load(self.path + 'ground_label/' + file_name + '.npy')
 
         return mask
 
@@ -160,9 +166,12 @@ class Ground_removal:
                 mask (numpy.array): array of booleans indicating which points
                     in synchronized PCL are not ground
         """
-        labels = self.get_labels(number)
-        mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44) \
-            & np.array(labels != 48) & np.array(labels != 49)
+        #labels = self.get_labels(number)
+        #mask = np.array(labels != 40) & np.array(labels != 72) & np.array(labels != 44) \
+        #    & np.array(labels != 48) & np.array(labels != 49)
+
+        mask = self.get_frame_ground_mask(number)
+        mask = ~mask
 
         return mask
 
@@ -178,25 +187,25 @@ class Ground_removal:
                 pts (numpy.array): N by 3 array of synchronized PCL
                 intensities (numpy.array): N by 1 array of intensities of points in PCL
         """
-        file_name = "0" * int(6 - (len(str(number)))) + str(number)
-        file_path = self.path + "velodyne/" + file_name + ".bin"
-        if not os.path.exists(file_path):
-            print(f"Error, path {file_path} does not exists")
-            return None, None
-        scan = np.fromfile(file_path, dtype=np.float32)
-        scan = scan.reshape((-1, 4))
-        intensities = scan[:, 3]
-        pts = scan[:, 0:3]
-
-        pose = self.poses[number]
-        pose = np.vstack((pose, [0, 0, 0, 1]))
-        pts = self.transform_mat(pts, pose).reshape(-1, 3)
-
+        pts, intensities = self.get_frame(number)
         mask = self.get_frame_without_ground_mask(number)
         pts = pts[mask]
         intensities = intensities[mask]
 
         return pts, intensities
+
+
+    def get_frame_and_remove_ground(self, number):
+        pts, _ = self.get_frame_unsynchronized(number)
+        pts = remove_ground(pts)
+        #inliers, outliers = ransac(pts, origin=[0,0,0])
+        inliers, outliers = find_PCA_inliers_outliers(pts)
+        pts = pts[outliers]
+        pose = self.poses[number]
+        pose = np.vstack((pose, [0, 0, 0, 1]))
+        pts = self.transform_mat(pts, pose).reshape(-1, 3)
+
+        return pts, []
 
 
     def get_moving_cars_mask(self, number):
@@ -234,33 +243,42 @@ class Ground_removal:
 
 
 # https://medium.com/@ajithraj_gangadharan/3d-ransac-algorithm-for-lidar-pcd-segmentation-315d2a51351
-def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass):
+def ransac(points, origin, close_points_radius=6, max_iterations=10, distance_ratio_threshold=0.2):
     """
     Apply RANSAC plane fitting for ground removal
 
     Parameters:
         points (numpy.array): 3D points of PCL
+        origin (list): coords of ego(lidar)
+        close_points_radius (float): radius of sphere around origin where to fit the plane
         max_iterations (int): number of iterations, during each iteration a new
             plane is created
         distance_ratio_threshold (float): distance which decides inliers/outliers
-        min_inliers_to_pass (float):
+        
     """
     inliers_result = []
     outliers_result = []
+
+    low_points = points[:,2] < -0.5
+    points = points[low_points]
+
+    tree = KDTree(points[:,:3])
+    close_points = points[tree.query_ball_point(origin, close_points_radius)]
+    best_plane = []
 
     for _ in range(max_iterations):
         # Add 3 random indexes
         random.seed()
         inliers = []
         outliers = []
-        n, _ = points.shape
+        n, _ = close_points.shape
         while len(inliers) < 3:
-            random_index = random.randint(0, n)
+            random_index = random.randint(0, n - 1)
             inliers.append(random_index)
 
-        x1, y1, z1 = points[inliers[0]]
-        x2, y2, z2 = points[inliers[1]]
-        x3, y3, z3 = points[inliers[2]]
+        x1, y1, z1 = close_points[inliers[0]]
+        x2, y2, z2 = close_points[inliers[1]]
+        x3, y3, z3 = close_points[inliers[2]]
         # Plane Equation --> ax + by + cz + d = 0
         # Value of Constants for inlier plane
         a = (y2 - y1) * (z3 - z1) - (z2 - z1) * (y3 - y1)
@@ -269,7 +287,7 @@ def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass
         d = -(a * x1 + b * y1 + c * z1)
         plane_lenght = max(0.1, np.sqrt(a * a + b * b + c * c))
 
-        for idx, point in enumerate(points):
+        for idx, point in enumerate(close_points):
             if idx in inliers:
                 # point already used
                 continue
@@ -287,12 +305,27 @@ def ransac(points, max_iterations, distance_ratio_threshold, min_inliers_to_pass
         if len(inliers) > len(inliers_result):
             inliers_result = inliers
             outliers_result = outliers
+            best_plane = [a,b,c,d,plane_lenght]
 
-        if len(inliers) >= min_inliers_to_pass:
-            break
+        
     # Segregate inliers and outliers from the point cloud
     # inlier_points = points[inliers_result]
     # outlier_points = points[outliers_result]
+
+    # use the best plane for all points (not just close ones)
+    a,b,c,d,plane_lenght = best_plane
+    inliers_result = []
+    outliers_result = []
+    for idx, point in enumerate(points):
+        x, y, z = point
+
+        # Calculate the distance of the point to the inlier plane
+        distance = np.fabs(a * x + b * y + c * z + d) / plane_lenght
+        # Add the point as inlier, if within the threshold distancec ratio
+        if distance <= distance_ratio_threshold:
+            inliers_result.append(idx)
+        else:
+            outliers_result.append(idx)
 
     return inliers_result, outliers_result
 
@@ -420,7 +453,13 @@ def find_PCA_inliers_outliers(points, distance_ratio_threshold=0.2, equation=Fal
     Returns:
         inliers_idx, outliers_idx (list): indicies of inliers/outliers
     """
-    a, b, c, d = best_fitting_plane(points, True)
+    low_points = points[:,2] < -0.5 
+    points = points[low_points]
+    tree = KDTree(points)
+    close_points = tree.query_ball_point([0,0,0], 7)
+   
+    a, b, c, d = best_fitting_plane(points[close_points], True)
+    #a, b, c, d = best_fitting_plane(points, True)
 
     inliers_idx = []
     outliers_idx = []
