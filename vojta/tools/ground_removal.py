@@ -1,13 +1,15 @@
-from fileinput import close
 import numpy as np
 import os
 import random
 from scipy.spatial import KDTree
-from tools.ground_removal_kitti import remove_ground
+#from ground_removal_kitti import remove_ground
 
 class Ground_removal:
-    def __init__(self, sequence): 
-        self.path = "../../semantic_kitti_data/sequences/" + sequence + "/"
+    def __init__(self, sequence, path=None): 
+        if path is None:
+            self.path = "../../semantic_kitti_data/sequences/" + sequence + "/"
+        else:
+            self.path=path
         self.poses = np.loadtxt(self.path + "poses.txt")
         self.poses = self.poses.reshape(-1, 3, 4)
 
@@ -150,7 +152,12 @@ class Ground_removal:
         #    | np.array(labels == 48) | np.array(labels == 49)
 
         file_name = "0" * int(6 - (len(str(number)))) + str(number)
-        mask = np.load(self.path + 'ground_label/' + file_name + '.npy')
+        file_path = self.path + 'ground_label/' + file_name + ".npy"
+        if not os.path.exists(file_path):
+            print(f"Error, path {file_path} does not exists")
+            return None
+        
+        mask = np.load(file_path)
 
         return mask
 
@@ -171,6 +178,8 @@ class Ground_removal:
         #    & np.array(labels != 48) & np.array(labels != 49)
 
         mask = self.get_frame_ground_mask(number)
+        if mask is None:
+            return None
         mask = ~mask
 
         return mask
@@ -189,12 +198,14 @@ class Ground_removal:
         """
         pts, intensities = self.get_frame(number)
         mask = self.get_frame_without_ground_mask(number)
+        if pts is None or mask is None:
+            return None, None
         pts = pts[mask]
         intensities = intensities[mask]
 
         return pts, intensities
 
-
+    """
     def get_frame_and_remove_ground(self, number):
         pts, _ = self.get_frame_unsynchronized(number)
         pts = remove_ground(pts)
@@ -206,7 +217,7 @@ class Ground_removal:
         pts = self.transform_mat(pts, pose).reshape(-1, 3)
 
         return pts, []
-
+        """
 
     def get_moving_cars_mask(self, number):
         labels = self.get_labels(number)

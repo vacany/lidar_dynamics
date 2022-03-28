@@ -1,4 +1,3 @@
-from tabnanny import verbose
 import numpy as np
 from scipy.spatial import KDTree
 from mayavi import mlab
@@ -25,10 +24,11 @@ class RaycastPredictor():
         pts_current, _ = self.Dataloader.get_frame_without_ground(num_of_frame)
         pts_future, _ = self.Dataloader.get_frame_without_ground(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
 
-        #pts_current, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame)
-        #pts_future, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
+        if pts_future is not None:
+            origin_future = self.Dataloader.get_synchronized_origin(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
+        else:
+             origin_future = None
 
-        origin_future = self.Dataloader.get_synchronized_origin(num_of_frame + self.config["NUM_OF_FRAMES_IN_FUTURE"])
         if num_of_frame - self.config['NUM_OF_FRAMES_IN_FUTURE'] >= 0:
             pts_past, _ = self.Dataloader.get_frame_without_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
             
@@ -170,7 +170,8 @@ class RaycastPredictor():
         valid_clusters = self.eliminate_objects_by_size(pts_current, clustering.labels_)
 
         # get moving objects
-        potentially_moving_clusters_future = self.get_potentionaly_moving_clusters(pts_current, 
+        if pts_future is not None:
+            potentially_moving_clusters_future = self.get_potentionaly_moving_clusters(pts_current, 
                                                 pts_future, clustering, valid_clusters)
         if pts_past is not None:
             potentially_moving_clusters_past = self.get_potentionaly_moving_clusters(pts_current, 
@@ -180,15 +181,17 @@ class RaycastPredictor():
         # we proclaim them dynamic, if not, we cannot decide if they are dynamic or not
        # look few frames into the future
         true_dynamic_objects = []
-        for moving_cluster in potentially_moving_clusters_future:
-            if self.verbose:
-                print(f"ray casting to cluster {moving_cluster} to future", end=' : ')
-            cluster_mask = clustering.labels_ == moving_cluster
-            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)    
-            response = self.send_raycast(pts_future, target=centroid,
-                                    origin=origin_future, radius=self.config['RADIUS_RAYCAST'])
-            if response is None:
-                true_dynamic_objects.append(moving_cluster)
+
+        if pts_future is not None:
+            for moving_cluster in potentially_moving_clusters_future:
+                if self.verbose:
+                    print(f"ray casting to cluster {moving_cluster} to future", end=' : ')
+                cluster_mask = clustering.labels_ == moving_cluster
+                centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)    
+                response = self.send_raycast(pts_future, target=centroid,
+                                        origin=origin_future, radius=self.config['RADIUS_RAYCAST'])
+                if response is None:
+                    true_dynamic_objects.append(moving_cluster)
         
         # look few frames into the past
         if pts_past is not None:
