@@ -3,6 +3,7 @@ import numpy as np
 import raycasting
 import yaml
 from ground_removal import Ground_removal
+import sys
 
 DATA_PATH = '../../../semantic_kitti_data/sequences/'
 
@@ -31,10 +32,19 @@ def generate_labels_for_sequence(sequence):
     for scan in scans:
         number = int(scan.split('.')[0])
         print(f'sequence: {sequence}, frame: {number}')
-        mask = rp_car.predict(number)
-        mask = mask | rp_ped.predict(number)
-        prediction = np.ones_like(mask, dtype=np.uint32) * 9
-        prediction[mask] = 251
+        car_pred = rp_car.predict(number)
+        ped_pred = rp_ped.predict(number)
+        prediction = np.zeros_like(car_pred, dtype=np.uint32)
+        for i in range(car_pred.shape[0]):
+            if car_pred[i] == ped_pred[i]:
+                prediction[i] = car_pred[i]
+            elif car_pred[i] == 0:
+                prediction[i] = ped_pred[i]
+            elif ped_pred[i] == 0:
+                prediction[i] = car_pred[i]
+            else:
+                prediction[i] = 0 # colision, one predicts moving, the other predicts static
+
         output_name = scan.split('.')[0] + '.label'
         prediction.tofile(os.path.join(predictions, output_name))
 
@@ -42,12 +52,12 @@ def generate_labels_for_sequence(sequence):
 if __name__ == '__main__':
     sequences = os.listdir(DATA_PATH)
     sequences.sort()
-    print(f"found {sequences}")
-    for sequence in sequences:
-        if not sequence.isnumeric():
-            continue
-
-        generate_labels_for_sequence(sequence)
+    sequence = sys.argv[1]
+    if sequence not in sequences:
+        print(f"wrong sequence {sequence}, found {sequences}")
+        exit()
+    
+    generate_labels_for_sequence(sequence)
 
         
             

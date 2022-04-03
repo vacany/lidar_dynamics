@@ -30,21 +30,30 @@ class RaycastPredictor():
              origin_future = None
 
         if num_of_frame - self.config['NUM_OF_FRAMES_IN_FUTURE'] >= 0:
-            pts_past, _ = self.Dataloader.get_frame_without_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
-            
-           # pts_past, _ = self.Dataloader.get_frame_and_remove_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
-            
+            pts_past, _ = self.Dataloader.get_frame_without_ground(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])            
             origin_past = self.Dataloader.get_synchronized_origin(num_of_frame - self.config["NUM_OF_FRAMES_IN_FUTURE"])
         else:
             pts_past = None
             origin_past = None
-        num_of_pts_including_ground = self.Dataloader.get_frame(num_of_frame)[0].shape[0]
 
+        num_of_pts_including_ground = self.Dataloader.get_frame(num_of_frame)[0].shape[0]
+        clustering = DBSCAN(eps=self.config['EPS'], min_samples=self.config['MIN_SAMPLES']).fit(pts_current[:,:3])
         dynamic_mask = self.find_dynamic_objects(pts_current=pts_current, pts_future=pts_future, pts_past=pts_past,
-             origin_future=origin_future, origin_past=origin_past)
-        complete_mask = np.array([False] * num_of_pts_including_ground)
+             origin_future=origin_future, origin_past=origin_past, clustering=clustering)
+
+        static_mask = self.find_static_objects(pts_current=pts_current, pts_future=pts_future,
+             pts_past=pts_past, clustering=clustering)
+        #complete_mask = np.array([False] * num_of_pts_including_ground)
+        #no_ground_mask = self.Dataloader.get_frame_without_ground_mask(num_of_frame)
+        #complete_mask[np.argwhere(no_ground_mask)] = dynamic_mask
+
+        complete_mask = np.zeros((num_of_pts_including_ground,), dtype=np.uint32) # zero means unlabeled
+        
         no_ground_mask = self.Dataloader.get_frame_without_ground_mask(num_of_frame)
-        complete_mask[np.argwhere(no_ground_mask)] = dynamic_mask
+        complete_mask[~no_ground_mask] = 9 # label for static obj      
+        complete_mask[np.where(no_ground_mask)[0][static_mask]] = 9       
+        complete_mask[np.where(no_ground_mask)[0][dynamic_mask]] = 251 # label for moving obj 
+        
         return complete_mask
 
 
@@ -141,6 +150,37 @@ class RaycastPredictor():
         return np.array(valid_clusters)
             
     
+    def find_static_objects(self, pts_current, pts_future, pts_past, clustering):
+        if pts_future is not None:
+            tree_future = KDTree(pts_future)
+        if pts_past is not None:
+            tree_past = KDTree(pts_past)
+        clusters = max(clustering.labels_)
+        static_clusters = []
+        for cluster in range(0, clusters + 1):
+            cluster_mask = clustering.labels_ == cluster
+            centroid = np.mean(pts_current[:,:3][cluster_mask], axis=0)
+
+            if pts_future is not None:
+                points_close_to_centroid_future = tree_future.query_ball_point(
+                                                    centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
+                if len(points_close_to_centroid_future) == 0:
+                    continue
+
+            if pts_past is not None:
+                points_close_to_centroid_past = tree_past.query_ball_point(
+                                                    centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
+                if len(points_close_to_centroid_past) == 0:
+                    continue
+            
+            static_clusters.append(cluster)
+
+        static_mask = np.array([False] * pts_current.shape[0])
+        for cluster in static_clusters:
+            static_mask = static_mask | (clustering.labels_ == cluster)
+        static_mask = static_mask.astype(bool).reshape(-1,)
+        return static_mask
+
     def get_potentionaly_moving_clusters(self, pts_current, pts_next, clustering, valid_clusters):
         tree = KDTree(pts_next[:,:3])
         potentially_moving_clusters = []
@@ -156,7 +196,7 @@ class RaycastPredictor():
         return potentially_moving_clusters
 
 
-    def find_dynamic_objects(self, pts_current, pts_future, pts_past, origin_future, origin_past):
+    def find_dynamic_objects(self, pts_current, pts_future, pts_past, origin_future, origin_past, clustering):
         '''
         Parameters:
             pts_current (numpy Nx3 array): pointcloud from time T
@@ -166,7 +206,7 @@ class RaycastPredictor():
             mask (numpy Nx1 array): mask of bools describing dynamic points 
         '''
         # get clusters filtered by size parameters specified in config
-        clustering = DBSCAN(eps=self.config['EPS'], min_samples=self.config['MIN_SAMPLES']).fit(pts_current[:,:3])
+        
         valid_clusters = self.eliminate_objects_by_size(pts_current, clustering.labels_)
 
         # get moving objects
@@ -212,8 +252,10 @@ class RaycastPredictor():
 
         if self.verbose:
             print(f"dynamic objects: {true_dynamic_objects}")
-        dynamic_mask = np.array([False * pts_current.shape[0]])
+        dynamic_mask = np.array([False] * pts_current.shape[0])
+        
         for cluster in true_dynamic_objects:
             dynamic_mask = dynamic_mask | (clustering.labels_ == cluster)
-        dynamic_mask = dynamic_mask.astype(bool).reshape(-1,1)
+        dynamic_mask = dynamic_mask.astype(bool).reshape(-1,)
+        
         return dynamic_mask
