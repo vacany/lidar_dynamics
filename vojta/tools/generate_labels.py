@@ -42,8 +42,11 @@ def generate_labels_for_sequence(sequence):
                 prediction[i] = ped_pred[i]
             elif ped_pred[i] == 0:
                 prediction[i] = car_pred[i]
+            elif ped_pred[i] == 251: # pedestrian predictor is much more sensitive, often 
+                                     # moving pedestrians get labeled as static by car predictor
+                prediction[i] = 251
             else:
-                prediction[i] = 0 # colision, one predicts moving, the other predicts static
+                prediction[i] = 0 # colision, one predicts moving, the other predicts static, should not happen
 
         output_name = scan.split('.')[0] + '.label'
         prediction.tofile(os.path.join(predictions, output_name))

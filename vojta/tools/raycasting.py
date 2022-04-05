@@ -172,7 +172,8 @@ class RaycastPredictor():
                                                     centroid, self.config['RADIUS_EMPTY_SPACE_CHECK'])
                 if len(points_close_to_centroid_past) == 0:
                     continue
-            
+            if self.verbose:
+                print(f"cluster {cluster} is static")
             static_clusters.append(cluster)
 
         static_mask = np.array([False] * pts_current.shape[0])
